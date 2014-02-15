@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <unistd.h>
+#include <fcntl.h>
+#include <termios.h>
+
+
 #define BUF_SIZE 1024
 
 #define INVERSE_MASK       (1 << 1)
@@ -84,67 +89,67 @@ struct token {
 	char * value;
 };
 
-void _printc(char c) 
+void _printc(char c, FILE * fd) 
 {
-	putchar(c);
+	fputc(c, fd);
 	//printf("/%d ", c);
 }
 
-void _prints(char* s) 
+void _prints(char* s, FILE * fd) 
 {
-	printf("%s", s);
+	fprintf(fd, "%s", s);
 }
 
-void _write_print_mode() {
-	_printc(27);
-	_printc(33);
-	_printc(print_mode);
+void _write_print_mode(FILE * fd) {
+	_printc(27, fd);
+	_printc(33, fd);
+	_printc(print_mode, fd);
 }
 
-void _set_print_mode(unsigned char mask) {
+void _set_print_mode(unsigned char mask, FILE * fd) {
 	print_mode |= mask;
-	_write_print_mode();
+	_write_print_mode(fd);
 //  charHeight = (print_mode & DOUBLE_HEIGHT_MASK) ? 48 : 24;
 //  maxColumn  = (print_mode & DOUBLE_WIDTH_MASK ) ? 16 : 32;
 }
 
-void _unset_print_mode(unsigned char mask) {
+void _unset_print_mode(unsigned char mask, FILE * fd) {
 	print_mode &= ~mask;
-	_write_print_mode();
+	_write_print_mode(fd);
 //  charHeight = (print_mode & DOUBLE_HEIGHT_MASK) ? 48 : 24;
 //  maxColumn  = (print_mode & DOUBLE_WIDTH_MASK ) ? 16 : 32;
 }
 
-void _set_align(enum Token_Type t) {
+void _set_align(enum Token_Type t, FILE * fd) {
 	unsigned int mode_char = 0;
 	switch(t) {
 		case TOKEN_CENTER_BEGIN: mode_char = 1; break;
 		case TOKEN_RIGHT_BEGIN: mode_char = 2; break;
 		default: mode_char = 0; break;
 	}
-	_printc(0x1B);
-	_printc(0x61);
-	_printc(mode_char);
+	_printc(0x1B, fd);
+	_printc(0x61, fd);
+	_printc(mode_char, fd);
 
 }
 
-void _reset_printer() {
-	_printc(0xFF);
+void _reset_printer(FILE * fd) {
+	_printc(0xFF, fd);
 	for(i=0; i<10; i++) {
 		usleep(1000);
-		_printc(27);
+		_printc(27, fd);
 	}
-	_printc(27);
-	_printc(64);
+	_printc(27, fd);
+	_printc(64, fd);
 	print_mode = 0x0;
-	_printc(27);
-	_printc(55);
-	_printc(20);
-	_printc(255);
-	_printc(250);
-	_printc(18);
-	_printc(35);
-	_printc(4 << 5 || 14);
+	_printc(27, fd);
+	_printc(55, fd);
+	_printc(20, fd);
+	_printc(255, fd);
+	_printc(250, fd);
+	_printc(18, fd);
+	_printc(35, fd);
+	_printc(4 << 5 || 14, fd);
 	_dotPrintTime = 30000; // See comments near top of file for
 	_dotFeedTime  =  2100; // an explanation of these values.
 }
@@ -173,7 +178,7 @@ unsigned int img_start = 0;
 unsigned int chunk_data_left = 0;
 unsigned int misaligned_offset = 0;
 
-void consume_imagedata (unsigned char c) {
+void consume_imagedata (unsigned char c, FILE * fd) {
 	//fprintf(stderr, "%c", c);
 	if (imgdata_pos < 4) {
 		//fprintf(stderr, "Got bit %d (%u)\n", imgdata_pos, (unsigned int)c);
@@ -207,11 +212,11 @@ void consume_imagedata (unsigned char c) {
 			}
   			if(chunkHeight > 255) chunkHeight = 255;
   			fprintf(stderr, "Printing chunk of data of size (%u x %u)\n", rowBytesClipped * 8, chunkHeight);
-  			_printc(18); _printc(42); _printc(chunkHeight); _printc(rowBytesClipped);
+  			_printc(18, fd); _printc(42, fd); _printc(chunkHeight, fd); _printc(rowBytesClipped, fd);
   			chunk_data_left = chunkHeight * rowBytesClipped;
   			img_start += chunkHeight;
   		} 
-  		_printc(c);
+  		_printc(c, fd);
   		usleep(100);
   		chunk_data_left -= 1;
 	}
@@ -226,17 +231,17 @@ char decodeCharacterTable[256] = {
 	,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
 	-1,-1,-1}; 
 
-void consume_decode( char v )
+void consume_decode(char v, FILE * fd)
 {
 	if (v == 0) {
 		// End of stream, we should decode any remaining char
 		if (pad_count > 0) {
 			decodeblock(in, out);
 			if (pad_count == 1) {
-				consume_imagedata(out[0]);
-				consume_imagedata(out[1]);
+				consume_imagedata(out[0], fd);
+				consume_imagedata(out[1], fd);
 			} else { // pad_count == 2
-				consume_imagedata(out[0]);
+				consume_imagedata(out[0], fd);
 			}
 		}
 	} else if (v == '=') {
@@ -246,60 +251,60 @@ void consume_decode( char v )
 			in[incount++] = decodeCharacterTable[v];
 			if (incount == 4) {
 				decodeblock(in, out);
-				consume_imagedata(out[0]);
-				consume_imagedata(out[1]);
-				consume_imagedata(out[2]);
+				consume_imagedata(out[0], fd);
+				consume_imagedata(out[1], fd);
+				consume_imagedata(out[2], fd);
 				incount = 0;
 			}
 		}
 	}
 }
 
-void _processToken(struct token t)
+void _processToken(struct token t, FILE * fd)
 {
 	switch (t.type) {
 		case TOKEN_HTML_BEGIN:
-		_reset_printer();
+		_reset_printer(fd);
 		break;
 
 		case TOKEN_INVERT_BEGIN:
-		_set_print_mode(INVERSE_MASK);
+		_set_print_mode(INVERSE_MASK, fd);
 		break;
 
 		case TOKEN_INVERT_END:
-		_unset_print_mode(INVERSE_MASK);
+		_unset_print_mode(INVERSE_MASK, fd);
 		break;
 
 		case TOKEN_B_BEGIN:
-		_set_print_mode(BOLD_MASK);
+		_set_print_mode(BOLD_MASK, fd);
 		break;
 
 		case TOKEN_B_END:
-		_unset_print_mode(BOLD_MASK);
+		_unset_print_mode(BOLD_MASK, fd);
 		break;
 
 		case TOKEN_S_BEGIN:
-		_set_print_mode(STRIKE_MASK);
+		_set_print_mode(STRIKE_MASK, fd);
 		break;
 
 		case TOKEN_S_END:
-		_unset_print_mode(STRIKE_MASK);
+		_unset_print_mode(STRIKE_MASK, fd);
 		break;
 
 		case TOKEN_BR:
-		_printc('\n');
+		_printc('\n', fd);
 		break;
 
 		case TOKEN_U_BEGIN:
-		_printc(27);
-		_printc(45);
-		_printc(1);
+		_printc(27, fd);
+		_printc(45, fd);
+		_printc(1, fd);
 		break;
 
 		case TOKEN_U_END:
-		_printc(27);
-		_printc(45);
-		_printc(0);
+		_printc(27, fd);
+		_printc(45, fd);
+		_printc(0, fd);
 		break;
 
 		case TOKEN_CENTER_BEGIN:
@@ -308,7 +313,7 @@ void _processToken(struct token t)
 		case TOKEN_LEFT_END:
 		case TOKEN_RIGHT_BEGIN:
 		case TOKEN_RIGHT_END:
-		_set_align(t.type);
+		_set_align(t.type, fd);
 		break;
 
 		default:
@@ -317,7 +322,7 @@ void _processToken(struct token t)
 	}
 }
 
-int consume(char c) 
+int consume(char c, FILE * fd) 
 {
 	if (ps == PARSER_PASSTHRU_TEXT) {
 		// The passthru mode will send directly what it receives to the printer
@@ -332,33 +337,33 @@ int consume(char c)
 		} else if (c == '\n') {
 			// Eats the \n
 		} else { // Passes thru
-			_printc(c);
+			_printc(c, fd);
 		}
 	} else if (ps == PARSER_PASSTHRU_TEXT_FORCE) {
 		// Force mode
-		_printc(c);
+		_printc(c, fd);
 		ps = PARSER_PASSTHRU_TEXT;
 	} else if (ps == PARSER_PASSTHRU_BARCODE) {
 		// Barcode
 		if (c == '"') {
-			_printc(0);
+			_printc(0, fd);
 			// reset the parser state
 			ps = PARSER_TOKENIZER;
 			ts = TOKEN_INVALID;
 			token_closetag = 0;
 		} else {
-			_printc(c);
+			_printc(c, fd);
 		}
 	} else if (ps == PARSER_PASSTHRU_IMG_BASE64) {
 		// Img Base64
 		if (c == '"') {
-			consume_decode(0);
+			consume_decode(0, fd);
 			// reset the parser state
 			ps = PARSER_TOKENIZER;
 			ts = TOKEN_INVALID;
 			token_closetag = 0;
 		} else {
-			consume_decode(c);
+			consume_decode(c, fd);
 		}
 	} else {
 		// Real tokenizer mode: tokenizes what it receives
@@ -371,7 +376,7 @@ int consume(char c)
 			if (token_closetag) {
 				t.type += 1;
 			}
-			_processToken(t);
+			_processToken(t, fd);
 			// reset state
 			ps = PARSER_PASSTHRU_TEXT;
 			ts = TK_START;
@@ -403,9 +408,9 @@ int consume(char c)
 		} else if (c == '"') {
 			if (ts == TK_BARCODE) {
 				fprintf(stderr, "Printing barcode!\n");
-				_printc(29), _printc(72), _printc(2);    // Print label below barcode
-	  			_printc(29), _printc(119), _printc(3);    // Barcode width
-	  			_printc(29), _printc(107), _printc(CODE128); // Barcode type (listed in .h file)
+				_printc(29, fd), _printc(72, fd), _printc(2, fd);    // Print label below barcode
+	  			_printc(29, fd), _printc(119, fd), _printc(3, fd);    // Barcode width
+	  			_printc(29, fd), _printc(107, fd), _printc(CODE128, fd); // Barcode type (listed in .h file)
 	  			ps = PARSER_PASSTHRU_BARCODE;
 			} else if (ts == TK_IMG) {
 				fprintf(stderr, "Processing image data!\n");
@@ -462,15 +467,32 @@ int consume(char c)
 			}
 		}
 	}
+
+	return 0;
 }
 
 
 
-int main() 
+int main(int argc, char **argv) 
 {
 	char buffer[BUF_SIZE];
 	size_t contentSize = 1; // includes NULL
 	size_t i = 0;
+	FILE * fd;
+
+
+    fd = fopen( argv[1], "w" );
+
+
+	struct termios tio;
+
+    cfmakeraw(&tio);
+    cfsetispeed(&tio,B9600);
+    cfsetospeed(&tio,B9600);
+    tcsetattr(fileno(fd),TCSANOW,&tio);
+
+
+
 	/* Preallocate space.  We could just allocate one char here, 
 	but that wouldn't be efficient. */
 	char *content = malloc(sizeof(char) * BUF_SIZE);
@@ -495,8 +517,12 @@ int main()
 	}
 
 	for (i = 0; i < contentSize; i ++) {
-		consume(content[i]);
+		consume(content[i], fd);
 	}
+
+	fclose(fd);
+
+	return 0;
 
 	//printf("\nDone!\n");
 }
