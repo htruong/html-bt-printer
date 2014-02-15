@@ -149,7 +149,7 @@ void _reset_printer(FILE * fd) {
 	_printc(250, fd);
 	_printc(18, fd);
 	_printc(35, fd);
-	_printc(4 << 5 || 14, fd);
+	_printc((4 << 5) | 14, fd);
 	_dotPrintTime = 30000; // See comments near top of file for
 	_dotFeedTime  =  2100; // an explanation of these values.
 }
@@ -349,7 +349,7 @@ int consume(char c, FILE * fd)
 			_printc(0, fd);
 			// reset the parser state
 			ps = PARSER_TOKENIZER;
-			ts = TOKEN_INVALID;
+			ts = TK_INVALID;
 			token_closetag = 0;
 		} else {
 			_printc(c, fd);
@@ -360,7 +360,7 @@ int consume(char c, FILE * fd)
 			consume_decode(0, fd);
 			// reset the parser state
 			ps = PARSER_TOKENIZER;
-			ts = TOKEN_INVALID;
+			ts = TK_INVALID;
 			token_closetag = 0;
 		} else {
 			consume_decode(c, fd);
@@ -372,7 +372,7 @@ int consume(char c, FILE * fd)
 		} else if (c == '>') {
 			// Sees a closing >
 			struct token t;
-			t.type = ts;
+			t.type = (enum Token_Type) ts;
 			if (token_closetag) {
 				t.type += 1;
 			}
@@ -481,15 +481,22 @@ int main(int argc, char **argv)
 	FILE * fd;
 
 
-    fd = fopen( argv[1], "w" );
 
+    if (strncmp(argv[1], "stdout", 255) == 0) {
 
-	struct termios tio;
+    	fd = stdout;
 
-    cfmakeraw(&tio);
-    cfsetispeed(&tio,B9600);
-    cfsetospeed(&tio,B9600);
-    tcsetattr(fileno(fd),TCSANOW,&tio);
+    } else {
+	    fd = fopen( argv[1], "w" );
+
+		struct termios tio;
+
+	    cfmakeraw(&tio);
+	    cfsetispeed(&tio,B9600);
+	    cfsetospeed(&tio,B9600);
+	    tcsetattr(fileno(fd),TCSANOW,&tio);
+
+    }
 
 
 
