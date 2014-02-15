@@ -92,12 +92,14 @@ struct token {
 void _printc(char c, FILE * fd) 
 {
 	fputc(c, fd);
+  fflush(fd);
 	//printf("/%d ", c);
 }
 
 void _prints(char* s, FILE * fd) 
 {
 	fprintf(fd, "%s", s);
+  // fflush(fd);
 }
 
 void _write_print_mode(FILE * fd) {
@@ -491,9 +493,9 @@ int main(int argc, char **argv)
 
 		struct termios tio;
 
-	    cfmakeraw(&tio);
-	    cfsetispeed(&tio,B9600);
-	    cfsetospeed(&tio,B9600);
+	    //cfmakeraw(&tio);
+	    cfsetispeed(&tio,B19200);
+	    cfsetospeed(&tio,B19200);
 	    tcsetattr(fileno(fd),TCSANOW,&tio);
 
     }
