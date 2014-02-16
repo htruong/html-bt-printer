@@ -29,6 +29,9 @@
 #define CODE11  9
 #define MSI    10
 
+static const char STATIC_SIMPLE_HEADER[] = "<html><head></head><body>";
+static const char STATIC_SIMPLE_FOOTER[] = "<br /></body></html>";
+
 enum Token_Type {
 	TOKEN_HTML_BEGIN = 15, TOKEN_HTML_END = 16,
 	TOKEN_HEADER_BEGIN = 20, TOKEN_HEADER_END = 21,
@@ -92,7 +95,7 @@ struct token {
 void _printc(char c, FILE * fd) 
 {
 	fputc(c, fd);
-  fflush(fd);
+	fflush(fd);
 	//printf("/%d ", c);
 }
 
@@ -169,9 +172,9 @@ unsigned char imgdata_pos = 0;
 
 void decodeblock( unsigned char *in, unsigned char *out )
 {
-    out[ 0 ] = (unsigned char ) (in[0] << 2 | in[1] >> 4);
-    out[ 1 ] = (unsigned char ) (in[1] << 4 | in[2] >> 2);
-    out[ 2 ] = (unsigned char ) (((in[2] << 6) & 0xc0) | in[3]);
+	out[ 0 ] = (unsigned char ) (in[0] << 2 | in[1] >> 4);
+	out[ 1 ] = (unsigned char ) (in[1] << 4 | in[2] >> 2);
+	out[ 2 ] = (unsigned char ) (((in[2] << 6) & 0xc0) | in[3]);
 }
 
 unsigned int img_w, img_h;
@@ -187,61 +190,61 @@ void consume_imagedata (unsigned char c, FILE * fd) {
 		switch (imgdata_pos) {
 
 			case 0:
-				img_w = c;
-				break;
+			img_w = c;
+			break;
 			case 1:
-				img_w |= (((unsigned int)c) << 8);
+			img_w |= (((unsigned int)c) << 8);
 			case 2:
-				img_h = c;
-				break;
+			img_h = c;
+			break;
 			case 3:
-				img_h |= (((unsigned int)c) << 8);
-				fprintf(stderr, "The image width and height is (%u x %u)\n", img_w, img_h);
+			img_h |= (((unsigned int)c) << 8);
+			fprintf(stderr, "The image width and height is (%u x %u)\n", img_w, img_h);
 				rowBytes        = (img_w + 7) / 8; // Round up to next byte boundary
   				rowBytesClipped = (rowBytes >= 48) ? 48 : rowBytes; // 384 pixels max width
   				img_start = 0;
   				chunk_data_left = 0;
-				break;
-		}
-		imgdata_pos ++;
-	} else {
-		if (chunk_data_left <= 0) {
-  			sleep(1);
-			unsigned int chunkHeight = img_h - img_start;
-			if (chunkHeight <= 0) {
-				fprintf(stderr, "Still receiving ([%c]) -- Discarding! \n", c);
-				return;
-			}
-  			if(chunkHeight > 255) chunkHeight = 255;
-  			fprintf(stderr, "Printing chunk of data of size (%u x %u)\n", rowBytesClipped * 8, chunkHeight);
-  			_printc(18, fd); _printc(42, fd); _printc(chunkHeight, fd); _printc(rowBytesClipped, fd);
-  			chunk_data_left = chunkHeight * rowBytesClipped;
-  			img_start += chunkHeight;
-  		} 
-  		_printc(c, fd);
-  		usleep(100);
-  		chunk_data_left -= 1;
-	}
-}
+  				break;
+  			}
+  			imgdata_pos ++;
+  		} else {
+  			if (chunk_data_left <= 0) {
+  				sleep(1);
+  				unsigned int chunkHeight = img_h - img_start;
+  				if (chunkHeight <= 0) {
+  					fprintf(stderr, "Still receiving ([%c]) -- Discarding! \n", c);
+  					return;
+  				}
+  				if(chunkHeight > 255) chunkHeight = 255;
+  				fprintf(stderr, "Printing chunk of data of size (%u x %u)\n", rowBytesClipped * 8, chunkHeight);
+  				_printc(18, fd); _printc(42, fd); _printc(chunkHeight, fd); _printc(rowBytesClipped, fd);
+  				chunk_data_left = chunkHeight * rowBytesClipped;
+  				img_start += chunkHeight;
+  			} 
+  			_printc(c, fd);
+  			usleep(100);
+  			chunk_data_left -= 1;
+  		}
+  	}
 
-char decodeCharacterTable[256] = {
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-	,-1,62,-1,-1,-1,63,52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21
-	,22,23,24,25,-1,-1,-1,-1,-1,-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-	,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	-1,-1,-1}; 
+  	char decodeCharacterTable[256] = {
+  		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+  		,-1,62,-1,-1,-1,63,52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21
+  		,22,23,24,25,-1,-1,-1,-1,-1,-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,
+  		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+  		,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  		-1,-1,-1}; 
 
-void consume_decode(char v, FILE * fd)
-{
-	if (v == 0) {
+  		void consume_decode(char v, FILE * fd)
+  		{
+  			if (v == 0) {
 		// End of stream, we should decode any remaining char
-		if (pad_count > 0) {
-			decodeblock(in, out);
-			if (pad_count == 1) {
-				consume_imagedata(out[0], fd);
-				consume_imagedata(out[1], fd);
+  				if (pad_count > 0) {
+  					decodeblock(in, out);
+  					if (pad_count == 1) {
+  						consume_imagedata(out[0], fd);
+  						consume_imagedata(out[1], fd);
 			} else { // pad_count == 2
 				consume_imagedata(out[0], fd);
 			}
@@ -386,106 +389,106 @@ int consume(char c, FILE * fd)
 		} else if (c == '/') {
 			if (ts == TK_START)  { // We're closing the tag
 				token_closetag = 1;
-			}
-		} else if (c == 'h') {
-			if (ts == TK_START)  {
-				ts = TK_H;
-			}
-		} else if (c == 't') {
-			if (ts == TK_H)  {
-				ts = TK_HTML;
-			}
-		} else if (c == 'e') {
-			if (ts == TK_H)  {
-				ts = TK_HEAD;
-			}
-		} else if (c == 'b') {
-			if (ts == TK_START)  {
-				ts = TK_B;
-			}
-		} else if (c == 'a') {
-			if (ts == TK_B) {
-				ts = TK_BARCODE;
-			}
-		} else if (c == '"') {
-			if (ts == TK_BARCODE) {
-				fprintf(stderr, "Printing barcode!\n");
+		}
+	} else if (c == 'h') {
+		if (ts == TK_START)  {
+			ts = TK_H;
+		}
+	} else if (c == 't') {
+		if (ts == TK_H)  {
+			ts = TK_HTML;
+		}
+	} else if (c == 'e') {
+		if (ts == TK_H)  {
+			ts = TK_HEAD;
+		}
+	} else if (c == 'b') {
+		if (ts == TK_START)  {
+			ts = TK_B;
+		}
+	} else if (c == 'a') {
+		if (ts == TK_B) {
+			ts = TK_BARCODE;
+		}
+	} else if (c == '"') {
+		if (ts == TK_BARCODE) {
+			fprintf(stderr, "Printing barcode!\n");
 				_printc(29, fd), _printc(72, fd), _printc(2, fd);    // Print label below barcode
 	  			_printc(29, fd), _printc(119, fd), _printc(3, fd);    // Barcode width
 	  			_printc(29, fd), _printc(107, fd), _printc(CODE128, fd); // Barcode type (listed in .h file)
 	  			ps = PARSER_PASSTHRU_BARCODE;
-			} else if (ts == TK_IMG) {
-				fprintf(stderr, "Processing image data!\n");
-				ps = PARSER_PASSTHRU_IMG_BASE64;
+	  		} else if (ts == TK_IMG) {
+	  			fprintf(stderr, "Processing image data!\n");
+	  			ps = PARSER_PASSTHRU_IMG_BASE64;
 
-			}
-		} else if (c == 'i') {
-			if (ts == TK_B)  {
-				ts = TK_BIG;
-			} else if (ts == TK_START) {
-				ts = TK_I;
-			}
-		} else if (c == 'o') {
-			if (ts == TK_B)  {
-				ts = TK_BODY;
-			}
-		} else if (c == 'm') {
-			if (ts == TK_START)  {
-				ts = TK_META;
-			} else if (ts == TK_I) {
-				ts = TK_IMG;
-			} else if (ts == TK_S) {
-				ts = TK_SMALL;
-			}
-		} else if (c == 'n') {
-			if (ts == TK_I) {
-				ts = TK_INVERT;
-			}
-		} else if (c == 's') {
-			if (ts == TK_START) {
-				ts = TK_S;
-			}
-		} else if (c == 'l') {
-			if (ts == TK_START) {
-				ts = TK_LEFT;
-			}
-		} else if (c == 'r') {
-			if (ts == TK_START) {
-				ts = TK_RIGHT;
-			} else if (ts == TK_B) {
-				ts = TK_BR;
-			}
-		} else if (c == 'c') {
-			if (ts == TK_START) {
-				ts = TK_CENTER;
-			}
-		} else if (c == 'u') {
-			if (ts == TK_START) {
-				ts = TK_U;
-			}
-		} else {
-			if (ts == TK_START) {
-				ts = TK_INVALID;
-			}
-		}
+	  		}
+	  	} else if (c == 'i') {
+	  		if (ts == TK_B)  {
+	  			ts = TK_BIG;
+	  		} else if (ts == TK_START) {
+	  			ts = TK_I;
+	  		}
+	  	} else if (c == 'o') {
+	  		if (ts == TK_B)  {
+	  			ts = TK_BODY;
+	  		}
+	  	} else if (c == 'm') {
+	  		if (ts == TK_START)  {
+	  			ts = TK_META;
+	  		} else if (ts == TK_I) {
+	  			ts = TK_IMG;
+	  		} else if (ts == TK_S) {
+	  			ts = TK_SMALL;
+	  		}
+	  	} else if (c == 'n') {
+	  		if (ts == TK_I) {
+	  			ts = TK_INVERT;
+	  		}
+	  	} else if (c == 's') {
+	  		if (ts == TK_START) {
+	  			ts = TK_S;
+	  		}
+	  	} else if (c == 'l') {
+	  		if (ts == TK_START) {
+	  			ts = TK_LEFT;
+	  		}
+	  	} else if (c == 'r') {
+	  		if (ts == TK_START) {
+	  			ts = TK_RIGHT;
+	  		} else if (ts == TK_B) {
+	  			ts = TK_BR;
+	  		}
+	  	} else if (c == 'c') {
+	  		if (ts == TK_START) {
+	  			ts = TK_CENTER;
+	  		}
+	  	} else if (c == 'u') {
+	  		if (ts == TK_START) {
+	  			ts = TK_U;
+	  		}
+	  	} else {
+	  		if (ts == TK_START) {
+	  			ts = TK_INVALID;
+	  		}
+	  	}
+	  }
+
+	  return 0;
 	}
 
-	return 0;
-}
 
+	int set_interface_attribs (int fd, int speed, int parity)
+	{
+		struct termios tty;
+		memset (&tty, 0, sizeof tty);
+		if (tcgetattr (fd, &tty) != 0)
+		{
+			fprintf (stderr, "error from tcgetattr \n");
+			return -1;
+		}
 
-int set_interface_attribs (int fd, int speed, int parity)
-{
-        struct termios tty;
-        memset (&tty, 0, sizeof tty);
-        if (tcgetattr (fd, &tty) != 0)
-        {
-                printf ("error %d from tcgetattr \n");
-                return -1;
-        }
-
-        cfsetospeed (&tty, speed);
-        cfsetispeed (&tty, speed);
+		cfsetospeed (&tty, speed);
+		cfsetispeed (&tty, speed);
 
         tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;     // 8-bit chars
         // disable IGNBRK for mismatched speed tests; otherwise receive break
@@ -508,51 +511,54 @@ int set_interface_attribs (int fd, int speed, int parity)
 
         if (tcsetattr (fd, TCSANOW, &tty) != 0)
         {
-                printf ("error %d from tcsetattr \n");
-                return -1;
+        	fprintf (stderr, "error from tcsetattr \n");
+        	return -1;
         }
         return 0;
-}
+    }
 
-void set_blocking (int fd, int should_block)
-{
-        struct termios tty;
-        memset (&tty, 0, sizeof tty);
-        if (tcgetattr (fd, &tty) != 0)
-        {
-                printf ("error %d from tggetattr \n");
-                return;
-        }
+    void set_blocking (int fd, int should_block)
+    {
+    	struct termios tty;
+    	memset (&tty, 0, sizeof tty);
+    	if (tcgetattr (fd, &tty) != 0)
+    	{
+    		fprintf (stderr, "error from tggetattr \n");
+    		return;
+    	}
 
-        tty.c_cc[VMIN]  = should_block ? 1 : 0;
+    	tty.c_cc[VMIN]  = should_block ? 1 : 0;
         tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
 
         if (tcsetattr (fd, TCSANOW, &tty) != 0)
-                printf ("error %d setting term attributes \n");
-}
+        	fprintf (stderr, "error setting term attributes \n");
+    }
 
 
 
-int main(int argc, char **argv) 
-{
-	char buffer[BUF_SIZE];
+    int main(int argc, char **argv) 
+    {
+
+
+    	char buffer[BUF_SIZE];
 	size_t contentSize = 1; // includes NULL
 	size_t i = 0;
 	FILE * fd;
 
 
 
-    if (strncmp(argv[1], "stdout", 255) == 0) {
+	if (strncmp(argv[argc - 1], "stdout", 255) == 0) {
 
-    	fd = stdout;
+		fd = stdout;
 
-    } else {
-	    fd = fopen( argv[1], "w" );
+	} else {
+		fprintf(stderr, "Using device %s\n", argv[argc -1]);
 
-	    set_interface_attribs (fileno(fd), B19200, 0);
-	    set_blocking (fileno(fd), 1);
+		fd = fopen( argv[argc -1], "w" );
 
-    }
+		set_interface_attribs (fileno(fd), B19200, 0);
+		set_blocking (fileno(fd), 1);
+	}
 
 
 
@@ -565,6 +571,15 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	content[0] = '\0'; // make null-terminated
+
+	if (strncmp(argv[1], "-s", 3) == 0) {
+		// Simple mode!
+		for (i = 0; i < sizeof(STATIC_SIMPLE_HEADER); i ++) {
+			fputc(STATIC_SIMPLE_HEADER[i], stderr);
+			consume(STATIC_SIMPLE_HEADER[i], fd);
+		}
+	}
+
 	while(fgets(buffer, BUF_SIZE, stdin))
 	{
 		char *old = content;
@@ -580,7 +595,17 @@ int main(int argc, char **argv)
 	}
 
 	for (i = 0; i < contentSize; i ++) {
+		fputc(content[i], stderr);
 		consume(content[i], fd);
+	}
+
+
+	if (strncmp(argv[1], "-s", 3) == 0) {
+		// Simple mode!
+		for (i = 0; i < sizeof(STATIC_SIMPLE_FOOTER); i ++) {
+			fputc(STATIC_SIMPLE_FOOTER[i], stderr);
+			consume(STATIC_SIMPLE_FOOTER[i], fd);
+		}
 	}
 
 	fclose(fd);

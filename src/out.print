@@ -1,10 +1,10 @@
 <html><head></head><body>
-HOA DON THANH TOAN <br />
+Testing <b>Formatting</b><br />
 <br />
-Don hang so: <u>01234566</u><br />
+U: <u>01234566</u><br />
 
-Barcode
-<barcode data="DH1234" />
+Barcode:
+<barcode data="LEL1234" />
 
 <br/>
 <img data="
