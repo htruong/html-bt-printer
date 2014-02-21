@@ -1,12 +1,14 @@
 <html><head></head><body>
-Testing <b>Formatting</b><br />
-<br />
-U: <u>01234566</u><br />
 
-Barcode:
-<barcode data="LEL1234" />
+Advanced features:<br />
+
+Barcode:<br />
+
+<barcode data="HTMLftw" />
 
 <br/>
+Image: <br />
+
 <img data="
 
 WAFMAWYiIiIiIiImIiIiIgIiIiIiIAAiIiIiIiIiACACAiIiICIiIiIiIiIiAiL/dmd3Z2d39393
